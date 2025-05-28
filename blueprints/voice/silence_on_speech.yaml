@@ -1,0 +1,61 @@
+blueprint:
+  name: Silence on speech
+  description: Silence mediaplayer while listening on a voice command
+  domain: automation
+  input:
+    assist_satellite:
+      name: Home Assistant Voice device
+      description: Voice device which listen to
+      selector:
+        entity:
+          filter:
+            - domain: assist_satellite
+    media_player:
+      name: Media Player
+      description: Media Player device which needs to be silenced
+      selector:
+        entity:
+          filter:
+            - domain: media_player
+    volume_level:
+      name: Volume level
+      description: To which level the volume should be lowered
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+      default: 10
+
+triggers:
+  - trigger: state
+    entity_id: !input assist_satellite
+    to: listening
+
+actions:
+  - alias: Set variables
+    variables:
+      mm_device: !input media_player
+      mm_silence_volume: !input volume_level
+      mm_current_volume: "{{(state_attr(mm_device,'volume_level')|float) }}"
+  - action: media_player.volume_set
+    metadata: {}
+    data:
+      volume_level: "{{ mm_silence_volume / 100 | float }}"
+    enabled: true
+    target:
+      entity_id: "{{ mm_device }}"
+  - wait_for_trigger:
+      - trigger: state
+        entity_id:
+          - !input assist_satellite
+        to: idle
+  - action: media_player.volume_set
+    metadata: {}
+    data:
+      volume_level: "{{ mm_current_volume }}"
+    enabled: true
+    target:
+      entity_id: "{{ mm_device }}"
+mode: single
